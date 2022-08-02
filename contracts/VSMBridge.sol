@@ -3,8 +3,6 @@ pragma solidity ^0.8.9;
 
 import "hardhat/console.sol";
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-
 struct Authorities {
     address[] keys;
 }
@@ -48,13 +46,11 @@ contract Authority {
 
     function verifySignatures(VSM memory message) public view returns (bool result) {
         require(message.signatures.length == _authorities.keys.length, "too few signatures");
-        bytes32 digest = ECDSA.toEthSignedMessageHash(
-            keccak256(abi.encode(message.emitter, message.chainId, message.sequence, message.nonce, message.payload))
-        );
+        bytes32 hash = keccak256(abi.encode(message.emitter, message.chainId, message.sequence, message.nonce, message.payload));
+        bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
         for (uint256 i = 0; i < message.signatures.length; i++) {
             Signature memory signature = message.signatures[i];
-            // address pub = ecrecover(digest, signature.v, signature.r, signature.s);
-            if (ECDSA.recover(digest, signature.v, signature.r, signature.s) != _authorities.keys[signature.index]) {
+            if (ecrecover(digest, signature.v, signature.r, signature.s) != _authorities.keys[signature.index]) {
                 return false;
             }
         }
